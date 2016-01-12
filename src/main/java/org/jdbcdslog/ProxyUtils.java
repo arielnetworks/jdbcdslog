@@ -67,41 +67,101 @@ public class ProxyUtils {
         return interfaces.toArray(EMPTY_CLASS_ARRAY);
     }
 
+    private static HandlerCreator2<LogMetaData, Statement, InvocationHandler> statementHandlerCreator
+            = new HandlerCreator2<LogMetaData, Statement, InvocationHandler>() {
+        public InvocationHandler apply(LogMetaData logMetaData, Statement statement) {
+            return new StatementLoggingHandler(logMetaData, statement);
+        }
+    };
+    private static HandlerCreator3<LogMetaData, PreparedStatement, String, InvocationHandler> preparedStatementHandlerCreator
+            = new HandlerCreator3<LogMetaData, PreparedStatement, String, InvocationHandler>() {
+        public InvocationHandler apply(LogMetaData logMetaData, PreparedStatement ps, String sql) {
+            return new PreparedStatementLoggingHandler(logMetaData, ps, sql);
+        }
+    };
+    private static HandlerCreator3<LogMetaData, CallableStatement, String, InvocationHandler> callableStatementHandlerCreator
+            = new HandlerCreator3<LogMetaData, CallableStatement, String, InvocationHandler>() {
+        public InvocationHandler apply(LogMetaData logMetaData, CallableStatement statement, String sql) {
+            return new CallableStatementLoggingHandler(logMetaData, statement, sql);
+        }
+    };
+    private static HandlerCreator2<LogMetaData, Connection, InvocationHandler> connectionHandlerCreator
+            = new HandlerCreator2<LogMetaData, Connection, InvocationHandler>() {
+        public InvocationHandler apply(LogMetaData logMetaData, Connection connection) {
+            return new ConnectionLoggingHandler(logMetaData, connection);
+        }
+    };
+    private static HandlerCreator2<LogMetaData, ResultSet, InvocationHandler> resultSetHandlerCreator
+            = new HandlerCreator2<LogMetaData, ResultSet, InvocationHandler>() {
+        public InvocationHandler apply(LogMetaData logMetaData, ResultSet resultSet) {
+            return new ResultSetLoggingHandler(logMetaData, resultSet);
+        }
+    };
+    private static HandlerCreator<Object, InvocationHandler> connectionSourceHandlerCreator
+            = new HandlerCreator<Object, InvocationHandler>() {
+        public InvocationHandler apply(Object target) {
+            return new ConnectionSourceLoggingHandler(target);
+        }
+    };
+
+    public static void setStatementHandlerCreator(HandlerCreator2<LogMetaData, Statement, InvocationHandler> creator) {
+        statementHandlerCreator = creator;
+    }
+
+    public static void setPreparedStatementHandlerCreator(HandlerCreator3<LogMetaData, PreparedStatement, String, InvocationHandler> creator) {
+        preparedStatementHandlerCreator = creator;
+    }
+
+    public static void setCallableStatementHandlerCreator(HandlerCreator3<LogMetaData, CallableStatement, String, InvocationHandler> creator) {
+        callableStatementHandlerCreator = creator;
+    }
+
+    public static void setConnectionHandlerCreator(HandlerCreator2<LogMetaData, Connection, InvocationHandler> creator) {
+        connectionHandlerCreator = creator;
+    }
+
+    public static void setResultSetHandlerCreator(HandlerCreator2<LogMetaData, ResultSet, InvocationHandler> creator) {
+        resultSetHandlerCreator = creator;
+    }
+
+    public static void setconnectionSourceHandlerCreator(HandlerCreator<Object, InvocationHandler> creator) {
+        connectionSourceHandlerCreator = creator;
+    }
 
     public static Statement wrapByStatementProxy(LogMetaData logMetaData, Statement s) {
-        return ProxyUtils.proxyForCompatibleInterfaces(s.getClass(), Statement.class, new StatementLoggingHandler(logMetaData, s));
+        return ProxyUtils.proxyForCompatibleInterfaces(s.getClass(), Statement.class, statementHandlerCreator.apply(logMetaData, s));
     }
 
     public static PreparedStatement wrapByPreparedStatementProxy(LogMetaData logMetaData, PreparedStatement ps, String sql) {
-        return ProxyUtils.proxyForCompatibleInterfaces(ps.getClass(), PreparedStatement.class, new PreparedStatementLoggingHandler(logMetaData, ps, sql));
+        return ProxyUtils.proxyForCompatibleInterfaces(ps.getClass(), PreparedStatement.class, preparedStatementHandlerCreator.apply(logMetaData, ps, sql));
     }
 
     public static CallableStatement wrapByCallableStatementProxy(LogMetaData logMetaData, CallableStatement cs, String sql) {
-        return ProxyUtils.proxyForCompatibleInterfaces(cs.getClass(), CallableStatement.class, new CallableStatementLoggingHandler(logMetaData, cs, sql));
+        return ProxyUtils.proxyForCompatibleInterfaces(cs.getClass(), CallableStatement.class, callableStatementHandlerCreator.apply(logMetaData, cs, sql));
     }
 
     public static Connection wrapByConnectionProxy(Connection c) {
-        return ProxyUtils.proxyForCompatibleInterfaces(c.getClass(), Connection.class, new ConnectionLoggingHandler(c));
+        return ProxyUtils.proxyForCompatibleInterfaces(c.getClass(), Connection.class, connectionHandlerCreator.apply(null, c));
     }
 
     public static Connection wrapByConnectionProxy(LogMetaData logMetaData, Connection c) {
-        return ProxyUtils.proxyForCompatibleInterfaces(c.getClass(), Connection.class, new ConnectionLoggingHandler(logMetaData, c));
+        return ProxyUtils.proxyForCompatibleInterfaces(c.getClass(), Connection.class, connectionHandlerCreator.apply(logMetaData, c));
     }
 
     public static ResultSet wrapByResultSetProxy(LogMetaData logMetaData, ResultSet r) {
-        return ProxyUtils.proxyForCompatibleInterfaces(r.getClass(), ResultSet.class, new ResultSetLoggingHandler(logMetaData, r));
+        return ProxyUtils.proxyForCompatibleInterfaces(r.getClass(), ResultSet.class, resultSetHandlerCreator.apply(logMetaData, r));
     }
 
     public static XAConnection wrapByXaConnection(XAConnection con) {
-        return ProxyUtils.proxyForCompatibleInterfaces(con.getClass(), XAConnection.class, new ConnectionSourceLoggingHandler(con));
+        return ProxyUtils.proxyForCompatibleInterfaces(con.getClass(), XAConnection.class, connectionSourceHandlerCreator.apply(con));
     }
 
     public static PooledConnection wrapByPooledConnection(PooledConnection con) {
-        return ProxyUtils.proxyForCompatibleInterfaces(con.getClass(), PooledConnection.class, new ConnectionSourceLoggingHandler(con));
+        return ProxyUtils.proxyForCompatibleInterfaces(con.getClass(), PooledConnection.class, connectionSourceHandlerCreator.apply(con));
     }
 
     public static Object wrapByConnectionSourceProxy(Object r, Class<?> interf) {
-        return ProxyUtils.proxyForCompatibleInterfaces(r.getClass(), interf, new ConnectionSourceLoggingHandler(r));
+        return ProxyUtils.proxyForCompatibleInterfaces(r.getClass(), interf, connectionSourceHandlerCreator.apply(r));
     }
 
 
