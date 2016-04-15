@@ -20,7 +20,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.ArrayList;
+import java.util.HashSet;
 
 import javax.sql.PooledConnection;
 import javax.sql.XAConnection;
@@ -56,7 +56,7 @@ public class ProxyUtils {
      * @return
      */
     public static Class<?>[] findCompatibleInterfaces(Class<?> clazz, Class<?> requiredInterface) {
-        ArrayList<Class<?>> interfaces = new ArrayList<Class<?>>();
+        HashSet<Class<?>> interfaces = new HashSet<Class<?>>();
         for ( ; ! clazz.equals(Object.class) ; clazz = clazz.getSuperclass()) {
             for (Class<?> iface : clazz.getInterfaces()) {
                 if (requiredInterface.isAssignableFrom(iface)) {
