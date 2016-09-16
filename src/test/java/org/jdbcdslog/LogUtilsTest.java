@@ -94,6 +94,14 @@ public class LogUtilsTest {
         assertEquals("org.jdbcdslog.LogUtilsTest.testOracleCreateLogEntryWithFourParamsCase5: select * from mc_instr;", LogUtils.createLogEntry(method, sql, null, null).toString());
     }
 
+    @Test
+    public void testNanoSecondsToSecondsString() {
+        assertEquals("0.000000000", LogUtils.nanoSecondsToSecondsString(0L));
+        assertEquals("0.000000001", LogUtils.nanoSecondsToSecondsString(1L));
+        assertEquals("0.123456789", LogUtils.nanoSecondsToSecondsString(123456789L));
+        assertEquals("12345678.987654321", LogUtils.nanoSecondsToSecondsString(12345678987654321L));
+    }
+
     // TODO: i want to mock the static variable(ConfigurationParameters.rdbmsSpecifics) in unit test,but failure,if you have good advices or ideas,please share with me.Thanks.
     // I tried to use powermock,but found it is work on mock static method(private or public), i could't find some tips to mock static var. Sorry.
     // you need remove @Ignore annotation and modify jdbcdslog.properties file under src/test/resources folder ,
