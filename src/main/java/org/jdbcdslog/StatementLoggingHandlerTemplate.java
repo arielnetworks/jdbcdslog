@@ -28,15 +28,15 @@ public abstract class StatementLoggingHandlerTemplate<T extends Statement> exten
         this.logMetaData = logMetaData;
     }
 
-    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+    public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
 
         Map<String, String> oldMdc = LogUtils.setMdc(logMetaData);
         try {
             boolean needsLog = needsLogging(proxy, method, args);
             long startTimeInNano = 0;
-            boolean isAddBatch = isAddBatch(proxy, method, args);
-            boolean isExecuteBatch = isExecuteBatch(proxy, method, args);
-            StringBuilder sb= null;
+            final boolean isAddBatch = isAddBatch(proxy, method, args);
+            final boolean isExecuteBatch = isExecuteBatch(proxy, method, args);
+            LazyStringBuilder sb = null;
 
             if (isAddBatch) {
                 if (!ConfigurationParameters.logAddBatch) {
@@ -50,25 +50,29 @@ public abstract class StatementLoggingHandlerTemplate<T extends Statement> exten
             if (needsLog) {
                 startTimeInNano = System.nanoTime();
 
-                sb = new StringBuilder();
-                if (ConfigurationParameters.logBeforeStatement) {
-                    sb.append("START: ");      // Reserve space for START: and END:
-                }
-                sb.append(method.getDeclaringClass().getName()).append(".").append(method.getName()).append(": ");
+                sb = new LazyStringBuilder();
+                sb.append(new Consumer<StringBuilder>() {
+                    public void accept(final StringBuilder sb) {
+                        if (ConfigurationParameters.logBeforeStatement) {
+                            sb.append("START: ");      // Reserve space for START: and END:
+                        }
+                        sb.append(method.getDeclaringClass().getName()).append(".").append(method.getName()).append(": ");
 
-                if (isExecuteBatch) {
-                    if (ConfigurationParameters.logExecuteBatchDetail) {
-                        appendBatchStatements(sb);
-                    }
-                } else if (isAddBatch) {
-                    if (ConfigurationParameters.logAddBatchDetail) {
-                        appendStatement(sb, proxy, method, args);
-                    }
-                } else {
-                    appendStatement(sb, proxy, method, args);
-                }
+                        if (isExecuteBatch) {
+                            if (ConfigurationParameters.logExecuteBatchDetail) {
+                                appendBatchStatements(sb);
+                            }
+                        } else if (isAddBatch) {
+                            if (ConfigurationParameters.logAddBatchDetail) {
+                                appendStatement(sb, proxy, method, args);
+                            }
+                        } else {
+                            appendStatement(sb, proxy, method, args);
+                        }
 
-                appendStackTrace(sb);
+                        appendStackTrace(sb);
+                    }
+                });
 
                 logBeforeInvoke(proxy, method, args, sb);
             }
@@ -78,19 +82,17 @@ public abstract class StatementLoggingHandlerTemplate<T extends Statement> exten
             result = doAfterInvoke(proxy, method, args, result);
 
             if (needsLog) {
-                long elapsedTimeInNano = System.nanoTime() - startTimeInNano;
+                final long elapsedTimeInNano = System.nanoTime() - startTimeInNano;
 
-                if (ConfigurationParameters.logBeforeStatement) {
-                    sb.setCharAt(0, 'E');
-                    sb.setCharAt(1, 'N');
-                    sb.setCharAt(2, 'D');
-                    sb.setCharAt(3, ':');
-                    sb.setCharAt(4, ' ');
-                    sb.setCharAt(5, ' ');
-                    sb.setCharAt(6, ' ');
-                }
+                sb.append(new Consumer<StringBuilder>() {
+                    public void accept(final StringBuilder sb) {
+                        if (ConfigurationParameters.logBeforeStatement) {
+                            sb.replace(0, ("START: ".length()), "END: ");
+                        }
 
-                appendElapsedTime(sb, elapsedTimeInNano);
+                        appendElapsedTime(sb, elapsedTimeInNano);
+                    }
+                });
 
                 logAfterInvoke(proxy, method, args, result, elapsedTimeInNano, sb);
             }
@@ -124,9 +126,9 @@ public abstract class StatementLoggingHandlerTemplate<T extends Statement> exten
         return false;
     }
 
-    protected void logBeforeInvoke(Object proxy, Method method, Object[] args, StringBuilder sb) {
+    protected void logBeforeInvoke(Object proxy, Method method, Object[] args, LazyStringBuilder message) {
         if (ConfigurationParameters.logBeforeStatement) {
-            getLogger().info(sb.toString());
+            logInfoOn(message, getLogger());
         }
     }
 
@@ -134,24 +136,28 @@ public abstract class StatementLoggingHandlerTemplate<T extends Statement> exten
         return wrap(logMetaData, result);
     }
 
-    protected void logAfterInvoke(Object proxy, Method method, Object[] args, Object result, long elapsedTimeInNano, StringBuilder message) {
+    protected void logAfterInvoke(Object proxy, final Method method, Object[] args, Object result, final long elapsedTimeInNano, LazyStringBuilder message) {
 
-        StringBuilder endMessage = message;
+        LazyStringBuilder endMessage = message;
         if ( ! ConfigurationParameters.logDetailAfterStatement) {
             // replace the log message to a simple message
 
-            endMessage = new StringBuilder("END:    ")
+            endMessage = new LazyStringBuilder();
+            endMessage.append(new Consumer<StringBuilder>() {
+                public void accept(final StringBuilder endMessage) {
+                    endMessage.append("END: ")
                         .append(method.getDeclaringClass().getName()).append(".").append(method.getName())
                         .append(": ");
-            appendStackTrace(endMessage);
-            appendElapsedTime(endMessage, elapsedTimeInNano);
-
+                    appendStackTrace(endMessage);
+                    appendElapsedTime(endMessage, elapsedTimeInNano);
+                }
+            });
         }
 
-        getLogger().info(endMessage.toString());
+        logInfoOn(endMessage, getLogger());
 
         if (elapsedTimeInNano >= ConfigurationParameters.slowQueryThresholdInNano) {
-            getSlowQueryLogger().info(message.toString());       // log the original message
+            logInfoOn(message, getSlowQueryLogger());       // log the original message
         }
 
     }
@@ -162,6 +168,12 @@ public abstract class StatementLoggingHandlerTemplate<T extends Statement> exten
 
     protected void handleException(Throwable t, Object proxy, Method method, Object[] args) throws Throwable {
         LogUtils.handleException(t, getLogger(), LogUtils.createLogEntry(method, null, null, null));
+    }
+
+    private void logInfoOn(Supplier<String> msgSupplier, Logger logger) {
+        if (logger.isInfoEnabled()) {
+            logger.info(msgSupplier.get());
+        }
     }
 
     protected Logger getLogger() {
