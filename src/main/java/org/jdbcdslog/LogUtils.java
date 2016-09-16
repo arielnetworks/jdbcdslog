@@ -40,10 +40,26 @@ public class LogUtils {
      */
     public static StringBuilder appendElapsedTime(StringBuilder sb, long elapsedTimeInNano) {
         if (ConfigurationParameters.showTime) {
-            sb.append("\nElapsed Time: ").append(String.format("%.9f", elapsedTimeInNano/1000000000.0)).append(" s.");
+            sb.append("\nElapsed Time: ").append(nanoSecondsToSecondsString(elapsedTimeInNano)).append(" s.");
         }
         return sb;
 
+    }
+
+    public static String nanoSecondsToSecondsString(long duration) {
+        StringBuilder sb = new StringBuilder();
+
+        String durationStr = Long.toString(duration);
+        int integerLen = Math.max(durationStr.length() - 9, 0);
+        String integer = durationStr.substring(0, integerLen);
+        String fraction = durationStr.substring(integerLen);
+        sb.append(integer.isEmpty() ? "0" : integer);
+        sb.append(".");
+        for (int p = 9 - fraction.length(); p > 0; p--) {
+            sb.append('0');
+        }
+        sb.append(fraction);
+        return sb.toString();
     }
 
     public static String appendStackTrace(String message) {
